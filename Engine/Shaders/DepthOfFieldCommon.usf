@@ -3,16 +3,17 @@
 	Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 =============================================================================*/
 
-// APB(SJT): Major modifications made to this file to support more-easily tweakable DoF parameters.
-
 /** The packed parameters. */
 half4 PackedParameters;
 
-// Amount to multiple depth by for near and far blur.
-static half2 NearFarScale = PackedParameters.xy;
+/** The distance which is 100% focused. */
+static half FocusDistance = PackedParameters.r;
 
-// Amount to add to depth for near and far blur.
-static half2 NearFarBias = PackedParameters.zw;
+/** One over the minimum distance from the focal which is 0% focused. */
+static half InverseFocusRadius = PackedParameters.g;
+
+/** The focus falloff exponent. */
+static half FocusExponent = PackedParameters.b;
 
 /** clamp for min/max blur amount values - default would be [1,1] */
 float2 MinMaxBlurClamp;
@@ -24,40 +25,10 @@ float2 MinMaxBlurClamp;
  */
 half CalcUnfocusedPercent(float SceneDepth)
 {
-	// Apply simple scale & bias to depth to get focus percent.
-	half2 NearFarBlur = SceneDepth.xx * NearFarScale + NearFarBias;
-
-	// Clamp to max blur value.
-	NearFarBlur = min(NearFarBlur, MinMaxBlurClamp);
-
-	// Take maximum of the two and saturate to [0,1].
-	return saturate(max(NearFarBlur.x, NearFarBlur.y));
+	// Blur amount based on ratio of distance to focus plane to the focus radius
+	// it is clamped to [-1,1]. Note that FocusDistance can be negative if it 
+	// falls behind the near plane.
+	half RelativeDistance = SceneDepth - FocusDistance;
+	half MaxUnfocusedPercent = RelativeDistance < 0 ? MinMaxBlurClamp.x : MinMaxBlurClamp.y;
+	return min( MaxUnfocusedPercent, pow( saturate(abs(RelativeDistance) * InverseFocusRadius), FocusExponent ) );
 }
-
-// APB(SJT) +
-
-/**
- * Computes the foreground-only unfocused percent for a scene depth.
- * @param SceneDepth - The scene depth.
- * @return A unfocused foreground percent for the depth.
- */
-half CalcForegroundUnfocusedPercent(float SceneDepth)
-{
-	half Blur = SceneDepth * NearFarScale.x + NearFarBias.x;
-	Blur = min(Blur, MinMaxBlurClamp.x);
-	return saturate(Blur);
-}
-
-/**
- * Computes the background-only unfocused percent for a scene depth.
- * @param SceneDepth - The scene depth.
- * @return A unfocused foreground percent for the depth.
- */
-half CalcBackgroundUnfocusedPercent(float SceneDepth)
-{
-	half Blur = SceneDepth * NearFarScale.y + NearFarBias.y;
-	Blur = min(Blur, MinMaxBlurClamp.y);
-	return saturate(Blur);
-}
-
-// APB(SJT) -

@@ -1,3 +1,7 @@
+//////////////////////////////////
+// 1.10.0-compatible RTW shader //
+//////////////////////////////////
+
 #include "Common.usf"
 
 float3 fromRGB( float3 rgb, float Kr, float Kb ) {
@@ -18,15 +22,17 @@ float3 fromRGB_toYCrCb_Gamma( float4 rgba ){
 }
 
 float4 scene( float2 t ) {	
-	float4 result = 0.0f;
-	if( t.x >= 0.0f && t.x <= 1.0f && t.y >= 0.0f && t.y <= 1.0f ) {
+	float4 result = 0.0;
+	if( t.x >= 0.0 && t.x <= 1.0 && t.y >= 0.0 && t.y <= 1.0 ) {
+
 		//do a little bit of extra sampling to reduce aliasing
 		result  = tex2D( SceneColorTexture, t);
 		result += tex2D( SceneColorTexture, t + float2(-halfTargetPixelSize.x, -halfTargetPixelSize.y));
 		result += tex2D( SceneColorTexture, t + float2(halfTargetPixelSize.x, -halfTargetPixelSize.y));
 		result += tex2D( SceneColorTexture, t + float2(-halfTargetPixelSize.x, halfTargetPixelSize.y));
 		result += tex2D( SceneColorTexture, t + float2(halfTargetPixelSize.x, halfTargetPixelSize.y));
-		result *= 0.20f;
+		result *= 0.25f;
+		
 	}
 	return result;
 }
@@ -38,6 +44,7 @@ void Main(
 	out float4 OutCb : COLOR2
 	)
 {
+
 	tex.xy += halfSourcePixelSize;
 	float2 t = (tex.xy - letterboxOffset) * invScale;
 	float2 dx = float2( halfSourcePixelSize.x * 2.0f,  0.0f ); //from resolution
@@ -71,4 +78,5 @@ void Main(
 	OutY  = float4( yuv_0.x, yuv_1.x, yuv_2.x, yuv_3.x ).zyxw;
 	OutCb = float4( yuv2_0.y, yuv2_1.y, yuv2_2.y, yuv2_3.y ).zyxw;
 	OutCr = float4( yuv2_0.z, yuv2_1.z, yuv2_2.z, yuv2_3.z ).zyxw;
+	
 }
